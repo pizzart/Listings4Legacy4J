@@ -10,6 +10,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.StringUtil;
+//? if >1.21.1
+/*import net.minecraft.world.entity.EntityEquipment;*/
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -39,7 +41,7 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
     private final List<ResourceLocation> allTabsRes;
     public final List<RecipeInfo<CraftingRecipe>> allRecipes;
     public CraftingPreviewScreen(ListingsScreen parent, Player player, int tabIdx, int buttonIdx, int offsetIdx) {
-        super(LegacyCraftingMenu.playerCraftingMenu((int) Minecraft.getInstance().getWindow().getWindow(), new Inventory(player)), new Inventory(player), Component.literal("Crafting Screen Preview"), false);
+        super(LegacyCraftingMenu.playerCraftingMenu((int) Minecraft.getInstance().getWindow().getWindow(), new Inventory(player/*? if >1.21.1 {*//*, new EntityEquipment()*//*?}*/)), new Inventory(player/*? if >1.21.1 {*//*, new EntityEquipment()*//*?}*/), Component.literal("Crafting Screen Preview"), false);
         this.parent = parent;
         this.menu.inventoryActive = false;
 
