@@ -105,7 +105,7 @@ public class RecipeViewerScreen extends ItemViewerScreen {
 
     @Override
     public void fillLayerGrid() {
-        Stream<RecipeInfo<CraftingRecipe>> stream = (!searchBox.getValue().isEmpty() ? sortedRecipes.stream().sorted((i, j) -> -compareDistances(i.getName().getString(), j.getName().getString(), searchBox.getValue())) : sortedRecipes.stream().sorted((i, j) -> -compareContaining(i.getResultItem(), j.getResultItem(), initialItems)));
+        Stream<RecipeInfo<CraftingRecipe>> stream = (!searchBox.getValue().isEmpty() ? sortedRecipes.stream().filter(r->r.getResultItem().getDisplayName().getString().toLowerCase().contains(searchBox.getValue().toLowerCase())).sorted((i, j) -> -compareDistances(i.getName().getString(), j.getName().getString(), searchBox.getValue())) : sortedRecipes.stream().sorted((i, j) -> -compareContaining(i.getResultItem(), j.getResultItem(), initialItems)));
         List<ItemStack> list = LegacyListingsClient.onlyModded ? stream.filter(r->!r.getId().getNamespace().equals(ResourceLocation.DEFAULT_NAMESPACE)).map(RecipeInfo::getResultItem).toList() : stream.map(RecipeInfo::getResultItem).toList();
         for (int i = 0; i < layerSelectionGrid.getContainerSize(); i++) {
             int index = scrolledList.get() * 50 + i;
@@ -117,9 +117,9 @@ public class RecipeViewerScreen extends ItemViewerScreen {
     @Override
     protected void init() {
         super.init();
+        tooltipBox.init();
         Component title = Component.literal(groupId);
         addRenderableOnly(SimpleLayoutRenderable.createDrawString(title, panel.x + (panel.width - font.width(title)) / 2, panel.y + 7, font.width(title), 9, CommonColor.INVENTORY_GRAY_TEXT.get(), false));
-        tooltipBox.init();
         scroller.setPosition(panel.x + 299, panel.y + 50);
         searchBox.setPosition(panel.x + (panel.width - searchBox.getWidth()) / 2 - 6, panel.y + 20);
         addRenderableWidget(searchBox);

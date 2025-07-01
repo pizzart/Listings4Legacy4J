@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.StringUtil;
 import wily.factoryapi.base.client.SimpleLayoutRenderable;
 import wily.legacy.client.CommonColor;
+import wily.legacy.client.screen.ConfirmationScreen;
 import wily.legacy.client.screen.Panel;
 import wily.legacy.client.screen.PanelVListScreen;
 
@@ -26,6 +27,18 @@ public class PackCreateScreen extends PanelVListScreen {
         };
     }
 
+    @Override
+    public void onClose() {
+        if (LegacyListingsClient.craftingTabs.isEmpty() && LegacyListingsClient.creativeTabs.isEmpty()) {
+            super.onClose();
+        }
+        else {
+            minecraft.setScreen(new ConfirmationScreen(this, Component.literal("Unsaved Changes"), Component.literal("There are unsaved changes in your listing pack. Do you wish to exit without saving?"), s->{
+                super.onClose();
+            }));
+        }
+    }
+
     public void onCreate(String packName) {
         if (StringUtil.isNullOrEmpty(packName)) return;
         LegacyListingsClient.savePack(LegacyListingsClient.LISTING_PACKS_PATH, true, packName, LegacyListingsClient.craftingTabs, LegacyListingsClient.creativeTabs);
@@ -42,7 +55,7 @@ public class PackCreateScreen extends PanelVListScreen {
 //            System.out.println("io error");
 //            minecraft.setScreen(ConfirmationScreen.createInfoScreen(this, Component.literal("Error"), Component.literal("An error occured while saving!")));
 //        }
-        LegacyListingsClient.craftingTabs.values().forEach(l->System.out.println(l.craftings()));
-        onClose();
+//        LegacyListingsClient.craftingTabs.values().forEach(l->System.out.println(l.craftings()));
+        super.onClose();
     }
 }
