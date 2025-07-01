@@ -62,7 +62,7 @@ public class LegacyListingsClient {
     public static boolean onlyModded = false;
     public static boolean onlyNotAdded = false;
 
-    public void init() {
+    public static void init() {
         FactoryAPIClient.postTick(this::postTick);
     }
 
