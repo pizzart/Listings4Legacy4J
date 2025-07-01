@@ -40,7 +40,7 @@ public class LegacyListingsClient {
         IO_ERROR,
         EMPTY,
     }
-    private boolean wasPaused = false;
+    private static boolean wasPaused = false;
 
     public static final Codec<String> GROUP_CODEC = Codec.STRING.fieldOf("group").codec();
     public static final Codec<List<RecipeInfo.Filter>> RECIPES_CODEC = RecipeInfo.Filter.CODEC.listOf().fieldOf("recipes").codec();
@@ -63,10 +63,10 @@ public class LegacyListingsClient {
     public static boolean onlyNotAdded = false;
 
     public static void init() {
-        FactoryAPIClient.postTick(this::postTick);
+        FactoryAPIClient.postTick(LegacyListingsClient::postTick);
     }
 
-    public void postTick(Minecraft minecraft) {
+    public static void postTick(Minecraft minecraft) {
         if (!minecraft.isPaused()) wasPaused = false;
         if (minecraft.screen instanceof PauseScreen pauseScreen && minecraft.isPaused() && !wasPaused) {
             RenderableVList.Access listAccess = (RenderableVList.Access) pauseScreen;

@@ -180,13 +180,9 @@ public class RecipeViewerScreen extends ItemViewerScreen {
             if (!addedItems.contains(item)) {
                 holder.render(guiGraphics, i, j, f);
             } else {
-                FactoryGuiGraphics.of(guiGraphics).pushBufferSource(FactoryGuiGraphics.of(guiGraphics).getBufferSource());
-                guiGraphics.flush();
-                RenderSystem.setShaderColor(0.7f, 0.7f, 0.7f, 1f);
+                FactoryGuiGraphics.of(guiGraphics).setColor(0.7f, 0.7f, 0.7f, 1f);
                 holder.render(guiGraphics, i, j, f);
-                guiGraphics.flush();
-                RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-                FactoryGuiGraphics.of(guiGraphics).popBufferSource();
+                FactoryGuiGraphics.of(guiGraphics).setColor(1f,1f,1f,1f);
             }
         }
         int xDiff = (tooltipBox.width - 69) / 2;
@@ -248,9 +244,9 @@ public class RecipeViewerScreen extends ItemViewerScreen {
             } else if (defaultItems.contains(s.getItem())) {
                 FactoryGuiGraphics.of(guiGraphics).blitSprite(LegacyIconHolder.WARNING_ICON, holder.x, holder.y, 8, 8);
             } else if (addedItems.contains(s.getItem())) {
-                guiGraphics.setColor(0.1f, 0.9f, 0.1f, 0.5f);
+                FactoryGuiGraphics.of(guiGraphics).setColor(0.1f, 0.9f, 0.1f, 0.5f);
                 FactoryGuiGraphics.of(guiGraphics).blitSprite(LegacyIconHolder.WARNING_ICON, holder.x, holder.y, 8, 8);
-                guiGraphics.setColor(1f,1f,1f,1f);
+                FactoryGuiGraphics.of(guiGraphics).setColor(1f,1f,1f,1f);
             }
             FactoryGuiGraphics.of(guiGraphics).enableDepthTest();
         });
