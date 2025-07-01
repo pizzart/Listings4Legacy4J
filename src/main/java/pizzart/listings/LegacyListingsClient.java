@@ -60,6 +60,7 @@ public class LegacyListingsClient {
     public static ListMap<ResourceLocation, LegacyCraftingTabListing> craftingTabs = new ListMap<>();
     public static ListMap<ResourceLocation, LegacyCreativeTabListing> creativeTabs = new ListMap<>();
     public static boolean onlyModded = false;
+    public static boolean onlyNotAdded = false;
 
     public void init() {
         FactoryAPIClient.postTick(this::postTick);

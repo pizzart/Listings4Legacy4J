@@ -33,7 +33,7 @@ public class PackCreateScreen extends PanelVListScreen {
             super.onClose();
         }
         else {
-            minecraft.setScreen(new ConfirmationScreen(this, Component.literal("Unsaved Changes"), Component.literal("There are unsaved changes in your listing pack. Do you wish to exit without saving?"), s->{
+            minecraft.setScreen(new ConfirmationScreen(this, Component.literal("Unsaved Changes"), Component.literal("There are unsaved changes in the pack. Do you wish to exit without saving?"), s->{
                 super.onClose();
             }));
         }

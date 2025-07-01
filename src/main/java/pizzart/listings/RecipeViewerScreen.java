@@ -36,15 +36,17 @@ public class RecipeViewerScreen extends ItemViewerScreen {
     protected final Consumer<RecipeViewerScreen> applyClose;
     protected final HashMap<ItemStack, RecipeInfo<CraftingRecipe>> itemToRecipe;
     protected final List<RecipeInfo<CraftingRecipe>> sortedRecipes;
+    protected final List<ItemStack> addedItems;
     protected final List<ItemStack> selectedItems;
     protected final List<ItemStack> initialItems;
     protected final List<ItemStack> defaultItems;
+    protected final List<Slot> draggedSlots;
     protected final String groupId;
     protected final Panel tooltipBox = Panel.tooltipBoxOf(panel, 188);
     protected final EditBox searchBox = new EditBox(Minecraft.getInstance().font, 0, 0, 200, 20, LegacyComponents.SEARCH_ITEMS);
     protected List<Optional<Ingredient>> ingredientsGrid;
 
-    public RecipeViewerScreen(Screen parent, String groupId, List<RecipeInfo<CraftingRecipe>> allRecipes, List<RecipeInfo.Filter> defaultRecipes, List<RecipeInfo.Filter> activeRecipes, Consumer<RecipeViewerScreen> applyRecipes, Consumer<RecipeViewerScreen> applyClose, Component component) {
+    public RecipeViewerScreen(Screen parent, String groupId, List<RecipeInfo<CraftingRecipe>> allRecipes, List<RecipeInfo<CraftingRecipe>> addedRecipes, List<RecipeInfo.Filter> defaultRecipes, List<RecipeInfo.Filter> activeRecipes, Consumer<RecipeViewerScreen> applyRecipes, Consumer<RecipeViewerScreen> applyClose, Component component) {
         super(parent, s -> Panel.centered(s, 325, 245), component);
         this.groupId = groupId;
         this.applyRecipes = applyRecipes;
@@ -54,6 +56,7 @@ public class RecipeViewerScreen extends ItemViewerScreen {
             if (!r.isInvalid()) this.itemToRecipe.put(r.getResultItem(), r);
         });
         this.sortedRecipes = this.itemToRecipe.values().stream().sorted(Comparator.comparing(r->r.getResultItem().getDisplayName().getString())).toList();
+        this.addedItems = addedRecipes.stream().map(r->r.getResultItem()).toList();
         this.ingredientsGrid = new ArrayList<>(Collections.nCopies(9, Optional.empty()));
         this.initialItems = new ArrayList<>();
         this.selectedItems = new ArrayList<>();
@@ -62,6 +65,7 @@ public class RecipeViewerScreen extends ItemViewerScreen {
         if (activeRecipes != null) activeRecipes.forEach(f->f.addRecipes(this.itemToRecipe.values(), r->this.selectedItems.add(r.getResultItem())));
         this.initialItems.addAll(this.defaultItems);
         this.initialItems.addAll(this.selectedItems);
+        this.draggedSlots = new ArrayList<>();
 
         menu.slots.clear();
         for (int i = 0; i < layerSelectionGrid.getContainerSize(); i++) {
@@ -105,8 +109,16 @@ public class RecipeViewerScreen extends ItemViewerScreen {
 
     @Override
     public void fillLayerGrid() {
-        Stream<RecipeInfo<CraftingRecipe>> stream = (!searchBox.getValue().isEmpty() ? sortedRecipes.stream().filter(r->r.getResultItem().getDisplayName().getString().toLowerCase().contains(searchBox.getValue().toLowerCase())).sorted((i, j) -> -compareDistances(i.getName().getString(), j.getName().getString(), searchBox.getValue())) : sortedRecipes.stream().sorted((i, j) -> -compareContaining(i.getResultItem(), j.getResultItem(), initialItems)));
-        List<ItemStack> list = LegacyListingsClient.onlyModded ? stream.filter(r->!r.getId().getNamespace().equals(ResourceLocation.DEFAULT_NAMESPACE)).map(RecipeInfo::getResultItem).toList() : stream.map(RecipeInfo::getResultItem).toList();
+        Stream<RecipeInfo<CraftingRecipe>> stream = sortedRecipes.stream();
+        stream = LegacyListingsClient.onlyNotAdded ? stream.filter(r->!addedItems.contains(r.getResultItem())) : stream;
+        stream = LegacyListingsClient.onlyModded ? stream.filter(r->!r.getId().getNamespace().equals(ResourceLocation.DEFAULT_NAMESPACE)) : stream;
+        stream = !searchBox.getValue().isEmpty() ?
+                stream
+                        .filter(r->r.getResultItem().getDisplayName().getString().toLowerCase().contains(searchBox.getValue().toLowerCase()))
+                        .sorted((i, j) -> -compareDistances(i.getName().getString(), j.getName().getString(), searchBox.getValue())) :
+                stream
+                        .sorted((i, j) -> -compareContaining(i.getResultItem(), j.getResultItem(), initialItems));
+        List<ItemStack> list = stream.map(RecipeInfo::getResultItem).toList();
         for (int i = 0; i < layerSelectionGrid.getContainerSize(); i++) {
             int index = scrolledList.get() * 50 + i;
             layerSelectionGrid.setItem(i, list.size() > index ? itemToRecipe.containsKey(list.get(index)) ? list.get(index) : ItemStack.EMPTY : ItemStack.EMPTY);
@@ -119,16 +131,22 @@ public class RecipeViewerScreen extends ItemViewerScreen {
         super.init();
         tooltipBox.init();
         Component title = Component.literal(groupId);
-        addRenderableOnly(SimpleLayoutRenderable.createDrawString(title, panel.x + (panel.width - font.width(title)) / 2, panel.y + 7, font.width(title), 9, CommonColor.INVENTORY_GRAY_TEXT.get(), false));
+        addRenderableOnly(SimpleLayoutRenderable.createDrawString(title, panel.x + (panel.width - font.width(title)) / 2, panel.y + 9, font.width(title), 9, CommonColor.INVENTORY_GRAY_TEXT.get(), false));
         scroller.setPosition(panel.x + 299, panel.y + 50);
-        searchBox.setPosition(panel.x + (panel.width - searchBox.getWidth()) / 2 - 6, panel.y + 20);
+        searchBox.setPosition(panel.x + (panel.width - searchBox.getWidth()) / 2, panel.y + 22);
         addRenderableWidget(searchBox);
+        addRenderableWidget(new TickBox(panel.x + 57, panel.y + 186, LegacyListingsClient.onlyNotAdded, b->Component.literal("Only Not Added"), m->null, b->{
+            LegacyListingsClient.onlyNotAdded = b.selected;
+            fillLayerGrid();
+            scrolledList.set(0);
+        }));
         addRenderableWidget(new TickBox(panel.x + 57, panel.y + 200, LegacyListingsClient.onlyModded, b->Component.literal("Only Modded"), m->null, b->{
             LegacyListingsClient.onlyModded = b.selected;
             fillLayerGrid();
+            scrolledList.set(0);
         }));
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> {
-            if (selectedItems.isEmpty()) {
+            if (selectedItems.isEmpty() && defaultItems.isEmpty()) {
                 minecraft.setScreen(new ConfirmationScreen(null, Component.literal("No Recipes Selected"), Component.literal("No recipes have been selected, as such the group will be deleted. Continue?"), s->{
                     super.onClose();
                     applyRecipes.accept(this);
@@ -159,13 +177,17 @@ public class RecipeViewerScreen extends ItemViewerScreen {
             ItemStack item = fullItems.get(idx);
             LegacyIconHolder holder = ScreenUtil.iconHolderRenderer.itemHolder(item, false);
             holder.setPos(tooltipBox.x + 10 + idx % maxSlotsWidth * holder.width, tooltipBox.y + 10 + idx / maxSlotsWidth * holder.height);
-            FactoryGuiGraphics.of(guiGraphics).pushBufferSource(FactoryGuiGraphics.of(guiGraphics).getBufferSource());
-            guiGraphics.flush();
-            RenderSystem.setShaderColor(0.8f,0.8f,0.8f,1f);
-            holder.render(guiGraphics, i, j, f);
-            guiGraphics.flush();
-            RenderSystem.setShaderColor(1f,1f,1f,1f);
-            FactoryGuiGraphics.of(guiGraphics).popBufferSource();
+            if (!addedItems.contains(item)) {
+                holder.render(guiGraphics, i, j, f);
+            } else {
+                FactoryGuiGraphics.of(guiGraphics).pushBufferSource(FactoryGuiGraphics.of(guiGraphics).getBufferSource());
+                guiGraphics.flush();
+                RenderSystem.setShaderColor(0.7f, 0.7f, 0.7f, 1f);
+                holder.render(guiGraphics, i, j, f);
+                guiGraphics.flush();
+                RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+                FactoryGuiGraphics.of(guiGraphics).popBufferSource();
+            }
         }
         int xDiff = (tooltipBox.width - 69) / 2;
         for (int index = 0; index < ingredientsGrid.size(); index++) {
@@ -183,7 +205,23 @@ public class RecipeViewerScreen extends ItemViewerScreen {
         }
         if (selectedItems.contains(item)) selectedItems.remove(item);
         else selectedItems.add(item);
+        draggedSlots.add(slot);
         ScreenUtil.playSimpleUISound(SoundEvents.UI_BUTTON_CLICK.value(),1f);
+    }
+
+    @Override
+    public boolean mouseDragged(double d, double e, int i, double f, double g) {
+        if (hoveredSlot != null && hoveredSlot.hasItem() && !draggedSlots.contains(hoveredSlot)) {
+            draggedSlots.add(hoveredSlot);
+            slotClicked(hoveredSlot);
+        }
+        return super.mouseDragged(d, e, i, f, g);
+    }
+
+    @Override
+    public boolean mouseReleased(double d, double e, int i) {
+        draggedSlots.clear();
+        return super.mouseReleased(d, e, i);
     }
 
     @Override
@@ -209,6 +247,10 @@ public class RecipeViewerScreen extends ItemViewerScreen {
                 FactoryGuiGraphics.of(guiGraphics).blitSprite(TickBox.TICK, holder.x, holder.y, 8, 8);
             } else if (defaultItems.contains(s.getItem())) {
                 FactoryGuiGraphics.of(guiGraphics).blitSprite(LegacyIconHolder.WARNING_ICON, holder.x, holder.y, 8, 8);
+            } else if (addedItems.contains(s.getItem())) {
+                guiGraphics.setColor(0.1f, 0.9f, 0.1f, 0.5f);
+                FactoryGuiGraphics.of(guiGraphics).blitSprite(LegacyIconHolder.WARNING_ICON, holder.x, holder.y, 8, 8);
+                guiGraphics.setColor(1f,1f,1f,1f);
             }
             FactoryGuiGraphics.of(guiGraphics).enableDepthTest();
         });

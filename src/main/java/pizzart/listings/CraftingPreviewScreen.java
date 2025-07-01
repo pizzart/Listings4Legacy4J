@@ -40,6 +40,7 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
     private final ListingsScreen parent;
     private final List<ResourceLocation> allTabsRes;
     public final List<RecipeInfo<CraftingRecipe>> allRecipes;
+    public final List<RecipeInfo<CraftingRecipe>> addedRecipes;
     public CraftingPreviewScreen(ListingsScreen parent, Player player, int tabIdx, int buttonIdx, int offsetIdx) {
         super(LegacyCraftingMenu.playerCraftingMenu((int) Minecraft.getInstance().getWindow().getWindow(), new Inventory(player/*? if >1.21.1 {*//*, new EntityEquipment()*//*?}*/)), new Inventory(player/*? if >1.21.1 {*//*, new EntityEquipment()*//*?}*/), Component.literal("Crafting Screen Preview"), false);
         this.parent = parent;
@@ -48,6 +49,7 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
         //? if >=1.20.5
         /*CraftingInput input = container.asCraftInput();*/
         this.allRecipes = CommonRecipeManager.byType(RecipeType.CRAFTING).stream().map(h-> RecipeInfo.create(h./*? if >1.20.1 {*//*id()*//*?} else {*/getId()/*?}*/, h/*? if >1.20.1 {*//*.value()*//*?}*/,h/*? if >1.20.1 {*//*.value()*//*?}*/ instanceof ShapedRecipe rcp ? LegacyCraftingMenu.updateShapedIngredients(new ArrayList<>(ingredientsGrid), LegacyCraftingMenu.getRecipeOptionalIngredients(rcp), 3, rcp.getWidth(), rcp.getHeight()) : h/*? if >1.20.1 {*//*.value()*//*?}*/ instanceof ShapelessRecipe r ? LegacyCraftingMenu.getRecipeOptionalIngredients(r) : Collections.emptyList(),h/*? if >1.20.1 {*//*.value()*//*?}*/.isSpecial() ? ItemStack.EMPTY : h/*? if >1.20.1 {*//*.value()*//*?}*/.assemble(/*? if <1.20.5 {*/container/*?} else {*//*input*//*?}*/,Minecraft.getInstance().level.registryAccess()))).filter(h->h.getOptionalIngredients().size() <= ingredientsGrid.size()).toList();
+        this.addedRecipes = new ArrayList<>();
 
         allTabsRes = new ArrayList<>();
         for (int i = 0; i < LegacyCraftingTabListing.map.size(); i++) {
@@ -79,7 +81,10 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
                 List<RecipeInfo<CraftingRecipe>> group = new ArrayList<>();
                 l.forEach(v->v.addRecipes(allRecipes,group::add));
                 group.removeIf(i->i.isInvalid() || i.getOptionalIngredients().size() > ingredientsGrid.size());
-                if (!group.isEmpty() || (LegacyListingsClient.craftingTabs.containsKey(res) && LegacyListingsClient.craftingTabs.get(res).craftings().containsKey(s))) groups.add(group);
+                if (!group.isEmpty() || (LegacyListingsClient.craftingTabs.containsKey(res) && LegacyListingsClient.craftingTabs.get(res).craftings().containsKey(s))) {
+                    groups.add(group);
+                    addedRecipes.addAll(group);
+                }
             });
 
             recipesByTab.add(groups);
@@ -125,7 +130,7 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
                         LegacyListingsClient.craftingTabs.remove(id);
                         reloadScreen();
                     }))).build();
-                    editButton.active = getActualTab() >= LegacyCreativeTabListing.map.size();
+                    editButton.active = getActualTab() >= LegacyCreativeTabListing.map.size() - 1;
                     deleteButton.active = editButton.active;
                     renderableVList.addRenderable(editButton);
                     renderableVList.addRenderable(deleteButton);
@@ -168,8 +173,8 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
             return;
         }
         String group = groups.get(groupIndex);
-        minecraft.setScreen(new RecipeViewerScreen(this, group, allRecipes, LegacyCraftingTabListing.map.containsKey(id) ? oldListing.craftings().get(group) : null, newListing.craftings().get(group), s -> {
-            if (s.selectedItems.isEmpty()) {
+        minecraft.setScreen(new RecipeViewerScreen(this, group, allRecipes, addedRecipes, LegacyCraftingTabListing.map.containsKey(id) ? oldListing.craftings().get(group) : null, newListing.craftings().get(group), s -> {
+            if (s.selectedItems.isEmpty() && s.defaultItems.isEmpty()) {
                 newListing.craftings().remove(group);
             } else {
                 s.selectedItems.removeAll(s.defaultItems);
