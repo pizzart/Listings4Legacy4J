@@ -42,20 +42,6 @@ public class PackCreateScreen extends PanelVListScreen {
     public void onCreate(String packName) {
         if (StringUtil.isNullOrEmpty(packName)) return;
         LegacyListingsClient.savePack(LegacyListingsClient.LISTING_PACKS_PATH, true, packName, LegacyListingsClient.craftingTabs, LegacyListingsClient.creativeTabs);
-//        if (status == LegacyListingsClient.SaveStatus.FILE_EXISTS) {
-//            System.out.println("overwrite?");
-//            minecraft.setScreen(new ConfirmationScreen(this, Component.literal("Pack Exists"), Component.literal("Do you wish to overwrite the existing pack?"), s -> {
-//                LegacyListingsClient.SaveStatus newStatus = LegacyListingsClient.savePack(LegacyListingsClient.LISTING_PACKS_PATH, true, name, LegacyListingsClient.craftingTabs, LegacyListingsClient.creativeTabs);
-//                if (newStatus == LegacyListingsClient.SaveStatus.IO_ERROR) {
-//                    minecraft.setScreen(ConfirmationScreen.createInfoScreen(this, Component.literal("Error"), Component.literal("An error occured while saving!")));
-//                }
-//            }));
-//        }
-//        else if (status == LegacyListingsClient.SaveStatus.IO_ERROR) {
-//            System.out.println("io error");
-//            minecraft.setScreen(ConfirmationScreen.createInfoScreen(this, Component.literal("Error"), Component.literal("An error occured while saving!")));
-//        }
-//        LegacyListingsClient.craftingTabs.values().forEach(l->System.out.println(l.craftings()));
         super.onClose();
     }
 }

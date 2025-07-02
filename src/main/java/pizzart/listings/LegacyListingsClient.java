@@ -86,25 +86,25 @@ public class LegacyListingsClient {
 //        } else FileUtils.listFiles(path.toFile(), new String[]{"json"},true).forEach(File::delete);
 
         Path packDir = path.resolve(name);
-        Path p = packDir.resolve("crafting_tab_listing.json");
-        if (!Files.exists(packDir)) {
+        Path p = packDir.resolve("assets").resolve("legacy").resolve("crafting_tab_listing.json");
+        if (!Files.exists(p.getParent())) {
             try {
                 FileUtils.createParentDirectories(p.toFile());
             } catch (IOException e) {
                 LOGGER.warn("Failed to make parent directories for file {}", p, e);
             }
         }
-//        if (Files.exists(p)) {
-//            if (!overwrite) return SaveStatus.FILE_EXISTS;
-//            else {
-//                try {
-//                    Files.delete(p);
-//                } catch (IOException e) {
-//                    LOGGER.warn("Failed to write {}, this listing pack won't be saved",p,e);
-//                    return SaveStatus.IO_ERROR;
-//                }
-//            }
-//        }
+        if (Files.exists(p)) {
+            if (!overwrite) return SaveStatus.FILE_EXISTS;
+            else {
+                try {
+                    Files.delete(p);
+                } catch (IOException e) {
+                    LOGGER.warn("Failed to delete {} for overwrite",p,e);
+                    return SaveStatus.IO_ERROR;
+                }
+            }
+        }
 
 
         try (JsonWriter w = new JsonWriter(Files.newBufferedWriter(p, Charsets.UTF_8))){

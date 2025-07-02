@@ -59,7 +59,7 @@ public class RecipeViewerScreen extends ItemViewerScreen {
             if (!r.isInvalid()) this.itemToRecipe.put(r.getResultItem(), r);
         });
         this.sortedRecipes = this.itemToRecipe.values().stream().sorted(Comparator.comparing(r->r.getResultItem().getDisplayName().getString())).toList();
-        this.addedItems = addedRecipes.stream().map(r->r.getResultItem()).toList();
+        this.addedItems = addedRecipes.stream().map(RecipeInfo::getResultItem).toList();
         this.ingredientsGrid = new ArrayList<>(Collections.nCopies(9, Optional.empty()));
         this.initialItems = new ArrayList<>();
         this.selectedItems = new ArrayList<>();
