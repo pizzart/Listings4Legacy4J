@@ -1,6 +1,6 @@
 package pizzart.listings;
 
-import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -17,6 +17,7 @@ import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.StringUtils;
 import wily.factoryapi.base.client.FactoryGuiGraphics;
 import wily.factoryapi.base.client.SimpleLayoutRenderable;
+import wily.factoryapi.util.FactoryScreenUtil;
 import wily.legacy.client.CommonColor;
 import wily.legacy.client.RecipeInfo;
 import wily.legacy.client.screen.*;
@@ -44,6 +45,8 @@ public class RecipeViewerScreen extends ItemViewerScreen {
     protected final String groupId;
     protected final Panel tooltipBox = Panel.tooltipBoxOf(panel, 188);
     protected final EditBox searchBox = new EditBox(Minecraft.getInstance().font, 0, 0, 200, 20, LegacyComponents.SEARCH_ITEMS);
+    protected int hoveredPreviewItem = -1;
+    protected int selectedPreviewItem = -1;
     protected List<Optional<Ingredient>> ingredientsGrid;
 
     public RecipeViewerScreen(Screen parent, String groupId, List<RecipeInfo<CraftingRecipe>> allRecipes, List<RecipeInfo<CraftingRecipe>> addedRecipes, List<RecipeInfo.Filter> defaultRecipes, List<RecipeInfo.Filter> activeRecipes, Consumer<RecipeViewerScreen> applyRecipes, Consumer<RecipeViewerScreen> applyClose, Component component) {
@@ -109,13 +112,15 @@ public class RecipeViewerScreen extends ItemViewerScreen {
 
     @Override
     public void fillLayerGrid() {
+        String query = searchBox.getValue().strip().toLowerCase();
         Stream<RecipeInfo<CraftingRecipe>> stream = sortedRecipes.stream();
         stream = LegacyListingsClient.onlyNotAdded ? stream.filter(r->!addedItems.contains(r.getResultItem())) : stream;
         stream = LegacyListingsClient.onlyModded ? stream.filter(r->!r.getId().getNamespace().equals(ResourceLocation.DEFAULT_NAMESPACE)) : stream;
-        stream = !searchBox.getValue().isEmpty() ?
+        stream = query.startsWith("@") ? stream.filter(r->r.getId().getNamespace().toLowerCase().contains(query.replace("@", ""))) : stream;
+        stream = !query.isEmpty() && !query.startsWith("@") ?
                 stream
-                        .filter(r->r.getResultItem().getDisplayName().getString().toLowerCase().contains(searchBox.getValue().toLowerCase()))
-                        .sorted((i, j) -> -compareDistances(i.getName().getString(), j.getName().getString(), searchBox.getValue())) :
+                        .filter(r->r.getResultItem().getDisplayName().getString().toLowerCase().contains(query))
+                        .sorted((i, j) -> -compareDistances(i.getName().getString(), j.getName().getString(), query)) :
                 stream
                         .sorted((i, j) -> -compareContaining(i.getResultItem(), j.getResultItem(), initialItems));
         List<ItemStack> list = stream.map(RecipeInfo::getResultItem).toList();
@@ -173,16 +178,27 @@ public class RecipeViewerScreen extends ItemViewerScreen {
         List<ItemStack> fullItems = new ArrayList<>();
         fullItems.addAll(defaultItems);
         fullItems.addAll(selectedItems);
+        hoveredPreviewItem = -1;
         for (int idx = 0; idx < fullItems.size(); idx++) {
             ItemStack item = fullItems.get(idx);
             LegacyIconHolder holder = ScreenUtil.iconHolderRenderer.itemHolder(item, false);
             holder.setPos(tooltipBox.x + 10 + idx % maxSlotsWidth * holder.width, tooltipBox.y + 10 + idx / maxSlotsWidth * holder.height);
-            if (!addedItems.contains(item)) {
+            boolean hovered = ScreenUtil.isMouseOver(i, j, holder.getXCorner(), holder.getYCorner(), holder.width, holder.height);
+            if (!defaultItems.contains(item)) {
                 holder.render(guiGraphics, i, j, f);
             } else {
                 FactoryGuiGraphics.of(guiGraphics).setColor(0.7f, 0.7f, 0.7f, 1f);
                 holder.render(guiGraphics, i, j, f);
                 FactoryGuiGraphics.of(guiGraphics).setColor(1f,1f,1f,1f);
+            }
+            if (selectedItems.contains(item) && !defaultItems.contains(item)) {
+                if (hovered) {
+                    holder.renderHighlight(guiGraphics);
+                    hoveredPreviewItem = selectedItems.indexOf(item);
+                }
+                if (selectedPreviewItem == selectedItems.indexOf(item)) {
+                    FactoryGuiGraphics.of(guiGraphics).blitSprite(LegacyIconHolder.SELECT_ICON_HIGHLIGHT,holder.x - 4,holder.y - 4,holder.width + 6,holder.height + 6);
+                }
             }
         }
         int xDiff = (tooltipBox.width - 69) / 2;
@@ -206,6 +222,16 @@ public class RecipeViewerScreen extends ItemViewerScreen {
     }
 
     @Override
+    public boolean mouseClicked(double d, double e, int i) {
+        if (hoveredPreviewItem != -1) {
+            if (selectedPreviewItem == hoveredPreviewItem) selectedPreviewItem = -1;
+            else selectedPreviewItem = hoveredPreviewItem;
+            ScreenUtil.playSimpleUISound(SoundEvents.UI_BUTTON_CLICK.value(),1f);
+        }
+        return super.mouseClicked(d, e, i);
+    }
+
+    @Override
     public boolean mouseDragged(double d, double e, int i, double f, double g) {
         if (hoveredSlot != null && hoveredSlot.hasItem() && !draggedSlots.contains(hoveredSlot)) {
             draggedSlots.add(hoveredSlot);
@@ -218,6 +244,25 @@ public class RecipeViewerScreen extends ItemViewerScreen {
     public boolean mouseReleased(double d, double e, int i) {
         draggedSlots.clear();
         return super.mouseReleased(d, e, i);
+    }
+
+    @Override
+    public boolean keyPressed(int i, int j, int k) {
+        if ((i == InputConstants.KEY_LEFT || i == InputConstants.KEY_RIGHT) && selectedPreviewItem != -1) {
+            boolean left = i == InputConstants.KEY_LEFT;
+            if (left && selectedPreviewItem == 0 || !left && selectedPreviewItem >= selectedItems.size() - 1) {
+                ScreenUtil.playSimpleUISound(LegacyRegistries.CRAFT_FAIL.get(), 1f);
+            } else {
+                int offset = left ? -1 : 1;
+                ItemStack oldItem = selectedItems.get(selectedPreviewItem + offset);
+                selectedItems.set(selectedPreviewItem + offset, selectedItems.get(selectedPreviewItem));
+                selectedItems.set(selectedPreviewItem, oldItem);
+                selectedPreviewItem += offset;
+                ScreenUtil.playSimpleUISound(LegacyRegistries.FOCUS.get(), true);
+            }
+            return true;
+        }
+        return super.keyPressed(i, j, k);
     }
 
     @Override
@@ -237,18 +282,20 @@ public class RecipeViewerScreen extends ItemViewerScreen {
         super.render(guiGraphics, i, j, f);
         menu.slots.forEach(s -> {
             LegacyIconHolder holder = ScreenUtil.iconHolderRenderer.slotBounds(panel.x, panel.y, s);
-            FactoryGuiGraphics.of(guiGraphics).disableDepthTest();
-            guiGraphics.pose().translate(0, 0, -100);
+//            FactoryGuiGraphics.of(guiGraphics).disableDepthTest();
+            FactoryScreenUtil.enableBlend();
+            guiGraphics.pose().translate(0, 0, 20);
             if (selectedItems.contains(s.getItem())) {
                 FactoryGuiGraphics.of(guiGraphics).blitSprite(TickBox.TICK, holder.x, holder.y, 8, 8);
             } else if (defaultItems.contains(s.getItem())) {
                 FactoryGuiGraphics.of(guiGraphics).blitSprite(LegacyIconHolder.WARNING_ICON, holder.x, holder.y, 8, 8);
-            } else if (addedItems.contains(s.getItem())) {
-                FactoryGuiGraphics.of(guiGraphics).setColor(0.1f, 0.9f, 0.1f, 0.5f);
+            } else if (addedItems.contains(s.getItem()) && !initialItems.contains(s.getItem())) {
+                FactoryGuiGraphics.of(guiGraphics).setColor(0.1f, 0.9f, 0.1f, 0.4f);
                 FactoryGuiGraphics.of(guiGraphics).blitSprite(LegacyIconHolder.WARNING_ICON, holder.x, holder.y, 8, 8);
                 FactoryGuiGraphics.of(guiGraphics).setColor(1f,1f,1f,1f);
             }
-            FactoryGuiGraphics.of(guiGraphics).enableDepthTest();
+//            FactoryGuiGraphics.of(guiGraphics).enableDepthTest();
+            FactoryScreenUtil.disableBlend();
         });
     }
 }
