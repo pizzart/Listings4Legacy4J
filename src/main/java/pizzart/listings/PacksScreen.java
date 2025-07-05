@@ -37,10 +37,10 @@ public class PacksScreen extends PanelVListScreen {
                 Arrays.stream(dirs).forEach(f -> renderableVList.addRenderable(new PackButton(Component.literal(f.getName()), b -> {
                     Path craftingsPath = f.toPath().resolve("assets").resolve("legacy").resolve("crafting_tab_listing.json");
                     if (!Files.exists(craftingsPath)) {
-                        minecraft.setScreen(new ConfirmationScreen(this, Component.literal("Missing File"), Component.literal("The crafting_tab_listing.json file does not exist or is misplaced! (intended path: <packname>/assets/legacy/crafting_tab_listing.json)")));
+                        minecraft.setScreen(new ConfirmationScreen(this, Component.literal("Missing File"), Component.literal("The crafting_tab_listing.json5 file does not exist or is misplaced! (intended path: <packname>/assets/legacy/crafting_tab_listing.json)")));
                         return;
                     }
-                    try (BufferedReader bufferedReader = Files.newBufferedReader(f.toPath())) {
+                    try (BufferedReader bufferedReader = Files.newBufferedReader(craftingsPath)) {
                         JsonElement element = JsonParser.parseReader(bufferedReader);
                         if (element instanceof JsonArray a) a.forEach(e-> LegacyCraftingTabListing.CODEC.parse(JsonOps.INSTANCE,e).result().ifPresent(listing->{
                             if (LegacyListingsClient.craftingTabs.containsKey(listing.id())) {

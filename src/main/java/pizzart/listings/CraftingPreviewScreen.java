@@ -47,8 +47,8 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
         this.menu.inventoryActive = false;
 
         //? if >=1.20.5
-        /*CraftingInput input = container.asCraftInput();*/
-        this.allRecipes = CommonRecipeManager.byType(RecipeType.CRAFTING).stream().map(h-> RecipeInfo.create(h./*? if >1.20.1 {*//*id()*//*?} else {*/getId()/*?}*/, h/*? if >1.20.1 {*//*.value()*//*?}*/,h/*? if >1.20.1 {*//*.value()*//*?}*/ instanceof ShapedRecipe rcp ? LegacyCraftingMenu.updateShapedIngredients(new ArrayList<>(ingredientsGrid), LegacyCraftingMenu.getRecipeOptionalIngredients(rcp), 3, rcp.getWidth(), rcp.getHeight()) : h/*? if >1.20.1 {*//*.value()*//*?}*/ instanceof ShapelessRecipe r ? LegacyCraftingMenu.getRecipeOptionalIngredients(r) : Collections.emptyList(),h/*? if >1.20.1 {*//*.value()*//*?}*/.isSpecial() ? ItemStack.EMPTY : h/*? if >1.20.1 {*//*.value()*//*?}*/.assemble(/*? if <1.20.5 {*/container/*?} else {*//*input*//*?}*/,Minecraft.getInstance().level.registryAccess()))).filter(h->h.getOptionalIngredients().size() <= ingredientsGrid.size()).toList();
+        CraftingInput input = container.asCraftInput();
+        this.allRecipes = CommonRecipeManager.byType(RecipeType.CRAFTING).stream().map(h-> RecipeInfo.create(h./*? if >1.20.1 {*/id()/*?} else {*//*getId()*//*?}*/, h/*? if >1.20.1 {*/.value()/*?}*/,h/*? if >1.20.1 {*/.value()/*?}*/ instanceof ShapedRecipe rcp ? LegacyCraftingMenu.updateShapedIngredients(new ArrayList<>(ingredientsGrid), LegacyCraftingMenu.getRecipeOptionalIngredients(rcp), 3, rcp.getWidth(), rcp.getHeight()) : h/*? if >1.20.1 {*/.value()/*?}*/ instanceof ShapelessRecipe r ? LegacyCraftingMenu.getRecipeOptionalIngredients(r) : Collections.emptyList(),h/*? if >1.20.1 {*/.value()/*?}*/.isSpecial() ? ItemStack.EMPTY : h/*? if >1.20.1 {*/.value()/*?}*/.assemble(/*? if <1.20.5 {*//*container*//*?} else {*/input/*?}*/,Minecraft.getInstance().level.registryAccess()))).filter(h->h.getOptionalIngredients().size() <= ingredientsGrid.size()).toList();
         this.addedRecipes = new ArrayList<>();
 
         allTabsRes = new ArrayList<>();
@@ -213,17 +213,17 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
     }
 
     //? if >1.20.1 {
-    /*@Override
+    @Override
     public void renderBackground(GuiGraphics guiGraphics, int i, int j, float f) {
         ScreenUtil.renderTransparentBackground(guiGraphics);
         renderBg(guiGraphics, f, i, j);
     }
-    *///?} else {
-    @Override
+    //?} else {
+    /*@Override
     public void renderBackground(GuiGraphics guiGraphics) {
         ScreenUtil.renderTransparentBackground(guiGraphics);
     }
-    //?}
+    *///?}
 
     @Override
     protected void addCraftingButtons() {

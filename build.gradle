@@ -81,6 +81,7 @@ configurations.configureEach {
 dependencies {
     minecraft "com.mojang:minecraft:${stonecutter.current.version}"
     mappings loom.officialMojangMappings()
+    api(include(sdl_dependency))
     modApi "wily.factory_api:factory_api-${loader}:${stonecutter.current.version}-${factory_api_version}"
     modImplementation "wily.legacy:legacy-${loader}:${stonecutter.current.version}-${l4j_version}"
 
@@ -102,6 +103,10 @@ dependencies {
         modCompileOnly("org.sinytra.forgified-fabric-api:fabric-rendering-data-attachment-v1:0.3.48+73761d2e19")
         modCompileOnly("org.sinytra.forgified-fabric-api:fabric-block-view-api-v2:1.0.10+9afaaf8c19")
         modCompileOnly("dev.architectury:architectury-neoforge:${architectury_version}")
+    }
+
+    if (loader == "forge" || loader == "neoforge") {
+        forgeRuntimeLibrary sdl_dependency
     }
 }
 
@@ -187,7 +192,8 @@ processResources {
             "fabric_api_version" : fabric_api_version,
             "mc_version_range" : version_range,
             "mc_version" : stonecutter.current.version,
-            "factory_api_version": factory_api_version
+            "factory_api_version": factory_api_version,
+            "l4j_version": l4j_version
     ]
     if (loader == "fabric" || loader == "forge" || loader == "neoforge") {
         if (loader != "fabric") {
