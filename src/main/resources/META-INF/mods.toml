@@ -29,7 +29,7 @@ side = "BOTH"
 
 [[dependencies.${mod_id}]]
 modId = "legacy"
-type="required"
+mandatory = true
 versionRange = "[${l4j_version},)"
 ordering = "AFTER"
 side = "BOTH"

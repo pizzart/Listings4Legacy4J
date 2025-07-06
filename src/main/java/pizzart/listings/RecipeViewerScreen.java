@@ -9,6 +9,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.StringUtil;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingRecipe;
@@ -18,8 +19,8 @@ import org.apache.commons.lang3.StringUtils;
 import wily.factoryapi.base.client.FactoryGuiGraphics;
 import wily.factoryapi.base.client.SimpleLayoutRenderable;
 import wily.factoryapi.util.FactoryScreenUtil;
-import wily.legacy.client.CommonColor;
-import wily.legacy.client.RecipeInfo;
+import wily.legacy.client.*;
+import wily.legacy.client.controller.ControllerBinding;
 import wily.legacy.client.screen.*;
 import wily.legacy.init.LegacyRegistries;
 import wily.legacy.inventory.LegacySlotDisplay;
@@ -30,6 +31,7 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import static wily.legacy.client.screen.ControlTooltip.EXTRA;
 import static wily.legacy.client.screen.RecipeIconHolder.getActualItem;
 
 public class RecipeViewerScreen extends ItemViewerScreen {
@@ -42,9 +44,9 @@ public class RecipeViewerScreen extends ItemViewerScreen {
     protected final List<ItemStack> initialItems;
     protected final List<ItemStack> defaultItems;
     protected final List<Slot> draggedSlots;
-    protected final String groupId;
     protected final Panel tooltipBox = Panel.tooltipBoxOf(panel, 188);
     protected final EditBox searchBox = new EditBox(Minecraft.getInstance().font, 0, 0, 200, 20, LegacyComponents.SEARCH_ITEMS);
+    protected String groupId;
     protected int hoveredPreviewItem = -1;
     protected int selectedPreviewItem = -1;
     protected List<Optional<Ingredient>> ingredientsGrid;
@@ -248,6 +250,10 @@ public class RecipeViewerScreen extends ItemViewerScreen {
 
     @Override
     public boolean keyPressed(int i, int j, int k) {
+        if (i == InputConstants.KEY_RETURN && selectedPreviewItem != -1) {
+            selectedPreviewItem = -1;
+            ScreenUtil.playSimpleUISound(SoundEvents.UI_BUTTON_CLICK.value(),1f);
+        }
         if ((i == InputConstants.KEY_LEFT || i == InputConstants.KEY_RIGHT) && selectedPreviewItem != -1) {
             boolean left = i == InputConstants.KEY_LEFT;
             if (left && selectedPreviewItem == 0 || !left && selectedPreviewItem >= selectedItems.size() - 1) {
@@ -262,7 +268,52 @@ public class RecipeViewerScreen extends ItemViewerScreen {
             }
             return true;
         }
+        if (i == InputConstants.KEY_O) {
+            EditBox renameBox = new EditBox(Minecraft.getInstance().font, width / 2 - 100, 0, 200, 20, Component.literal("Group ID"));
+            minecraft.setScreen(new ConfirmationScreen(null, Component.literal("Group Options"), Component.empty(), s->{}) {
+                @Override
+                protected void addButtons() {
+                    renderableVList.addRenderable(Button.builder(Component.literal("Cancel"), b->minecraft.setScreen(RecipeViewerScreen.this)).build());
+                    Button renameButton = Button.builder(Component.literal("Rename Group"), b->minecraft.setScreen(new ConfirmationScreen(this, Component.literal("Rename Group"), Component.empty(), s->{
+                        groupId = renameBox.getValue();
+                    }) {
+                        @Override
+                        protected void addButtons() {
+                            Button okButton = Button.builder(Component.translatable("gui.ok"), b-> {
+                                okAction.accept(this);
+                                minecraft.setScreen(parent);
+                            }).build();
+                            renameBox.setValue(groupId);
+                            renameBox.setResponder(s-> okButton.active = !StringUtil.isNullOrEmpty(s.strip()));
+                            renderableVList.addRenderable(renameBox);
+                            renderableVList.addRenderable(okButton);
+                            renderableVList.addRenderable(Button.builder(Component.translatable("gui.cancel"), b-> minecraft.setScreen(parent)).bounds(panel.x + 15, panel.y + panel.height - 96,200,20).build());
+                        }
+                    })).build();
+                    Button deleteButton = Button.builder(Component.literal("Delete Group"), b->minecraft.setScreen(new ConfirmationScreen(this, Component.literal("Delete Group"), Component.literal("Are you sure you want to delete this group?"), s->{
+                        groupId = null;
+                        RecipeViewerScreen.super.onClose();
+                        applyRecipes.accept(RecipeViewerScreen.this);
+                    }))).build();
+                    renameButton.active = defaultItems.isEmpty();
+                    deleteButton.active = renameButton.active;
+                    renderableVList.addRenderable(renameButton);
+                    renderableVList.addRenderable(deleteButton);
+                }
+                @Override
+                public void onClose() {
+                    super.onClose();
+                    minecraft.setScreen(RecipeViewerScreen.this);
+                }
+            });
+        }
         return super.keyPressed(i, j, k);
+    }
+
+    @Override
+    public void addControlTooltips(ControlTooltip.Renderer renderer) {
+        super.addControlTooltips(renderer);
+        renderer.add(EXTRA::get, () -> Component.literal("Options"));
     }
 
     @Override
