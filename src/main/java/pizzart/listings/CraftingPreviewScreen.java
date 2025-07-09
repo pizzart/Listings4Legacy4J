@@ -11,7 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.StringUtil;
 //? if >1.21.1
-import net.minecraft.world.entity.EntityEquipment;
+/*import net.minecraft.world.entity.EntityEquipment;*/
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -37,71 +37,32 @@ import static wily.legacy.client.screen.ControlTooltip.*;
 import static wily.legacy.client.screen.ControlTooltip.COMPOUND_ICON_FUNCTION;
 
 public class CraftingPreviewScreen extends LegacyCraftingScreen {
+    protected final List<List<String>> groupsByTab;
     private final ListingsScreen parent;
     private final List<ResourceLocation> allTabsRes;
     public final ListingPack pack;
+    public final boolean editExisting;
     public final List<RecipeInfo<CraftingRecipe>> allRecipes;
-    public final List<RecipeInfo<CraftingRecipe>> addedRecipes;
-    public CraftingPreviewScreen(ListingsScreen parent, Player player, ListingPack pack, int tabIdx, int buttonIdx, int offsetIdx) {
-        super(LegacyCraftingMenu.playerCraftingMenu((int) Minecraft.getInstance().getWindow().getWindow(), new Inventory(player/*? if >1.21.1 {*/, new EntityEquipment()/*?}*/)), new Inventory(player/*? if >1.21.1 {*/, new EntityEquipment()/*?}*/), Component.literal("Crafting Screen Preview"), false);
+    public final List<RecipeInfo<CraftingRecipe>> elsewhereRecipes;
+    public CraftingPreviewScreen(ListingsScreen parent, Player player, ListingPack pack) {
+        super(LegacyCraftingMenu.playerCraftingMenu((int) Minecraft.getInstance().getWindow().getWindow(), new Inventory(player/*? if >1.21.1 {*//*, new EntityEquipment()*//*?}*/)), new Inventory(player/*? if >1.21.1 {*//*, new EntityEquipment()*//*?}*/), Component.literal("Crafting Screen Preview"), false);
         this.parent = parent;
         this.pack = pack;
-        this.menu.inventoryActive = false;
+        this.editExisting = pack.type != ListingPack.Type.ADDITIVE;
+        this.groupsByTab = new ArrayList<>();
+        this.allTabsRes = new ArrayList<>();
+        this.elsewhereRecipes = new ArrayList<>();
 
         //? if >=1.20.5
-        CraftingInput input = container.asCraftInput();
-        this.allRecipes = CommonRecipeManager.byType(RecipeType.CRAFTING).stream().map(h-> RecipeInfo.create(h./*? if >1.20.1 {*/id()/*?} else {*//*getId()*//*?}*/, h/*? if >1.20.1 {*/.value()/*?}*/,h/*? if >1.20.1 {*/.value()/*?}*/ instanceof ShapedRecipe rcp ? LegacyCraftingMenu.updateShapedIngredients(new ArrayList<>(ingredientsGrid), LegacyCraftingMenu.getRecipeOptionalIngredients(rcp), 3, rcp.getWidth(), rcp.getHeight()) : h/*? if >1.20.1 {*/.value()/*?}*/ instanceof ShapelessRecipe r ? LegacyCraftingMenu.getRecipeOptionalIngredients(r) : Collections.emptyList(),h/*? if >1.20.1 {*/.value()/*?}*/.isSpecial() ? ItemStack.EMPTY : h/*? if >1.20.1 {*/.value()/*?}*/.assemble(/*? if <1.20.5 {*//*container*//*?} else {*/input/*?}*/,Minecraft.getInstance().level.registryAccess()))).filter(h->h.getOptionalIngredients().size() <= ingredientsGrid.size()).toList();
-        this.addedRecipes = new ArrayList<>();
+        /*CraftingInput input = container.asCraftInput();*/
+        this.allRecipes = CommonRecipeManager.byType(RecipeType.CRAFTING).stream().map(h-> RecipeInfo.create(h./*? if >1.20.1 {*//*id()*//*?} else {*/getId()/*?}*/, h/*? if >1.20.1 {*//*.value()*//*?}*/,h/*? if >1.20.1 {*//*.value()*//*?}*/ instanceof ShapedRecipe rcp ? LegacyCraftingMenu.updateShapedIngredients(new ArrayList<>(ingredientsGrid), LegacyCraftingMenu.getRecipeOptionalIngredients(rcp), 3, rcp.getWidth(), rcp.getHeight()) : h/*? if >1.20.1 {*//*.value()*//*?}*/ instanceof ShapelessRecipe r ? LegacyCraftingMenu.getRecipeOptionalIngredients(r) : Collections.emptyList(),h/*? if >1.20.1 {*//*.value()*//*?}*/.isSpecial() ? ItemStack.EMPTY : h/*? if >1.20.1 {*//*.value()*//*?}*/.assemble(/*? if <1.20.5 {*/container/*?} else {*//*input*//*?}*/,Minecraft.getInstance().level.registryAccess()))).filter(h->h.getOptionalIngredients().size() <= ingredientsGrid.size()).toList();
+        this.menu.inventoryActive = false;
 
-        allTabsRes = new ArrayList<>();
-        for (int i = 0; i < LegacyCraftingTabListing.map.size(); i++) {
-            allTabsRes.add(LegacyCraftingTabListing.map.getKeyByIndex(i));
-        }
-        for (int i = 0; i < pack.craftingTabs.size(); i++) {
-            ResourceLocation res = pack.craftingTabs.getKeyByIndex(i);
-            if (!allTabsRes.contains(res)) allTabsRes.add(res);
-        }
-
-        recipesByTab.clear();
-        craftingTabList.tabButtons.clear();
-        page.max = 0;
-
-        for (ResourceLocation res : allTabsRes) {
-            LegacyCraftingTabListing listing = LegacyCraftingTabListing.map.containsKey(res) ? LegacyCraftingTabListing.map.get(res) : pack.craftingTabs.get(res);
-            List<List<RecipeInfo<CraftingRecipe>>> groups = new ArrayList<>();
-            ListMap<String, List<RecipeInfo.Filter>> fullGroups = new ListMap<>();
-            if (LegacyCraftingTabListing.map.containsKey(res))
-                LegacyCraftingTabListing.map.get(res).craftings().forEach((s,l)->fullGroups.put(s, new ArrayList<>(l)));
-            if (pack.craftingTabs.containsKey(res)) {
-                Map<String, List<RecipeInfo.Filter>> map = pack.craftingTabs.get(res).craftings();
-                fullGroups.forEach((s, l) -> {
-                    if (map.containsKey(s)) l.addAll(map.get(s));
-                });
-                map.forEach(fullGroups::putIfAbsent);
-            }
-            fullGroups.forEach((s,l)->{
-                List<RecipeInfo<CraftingRecipe>> group = new ArrayList<>();
-                l.forEach(v->v.addRecipes(allRecipes,group::add));
-                group.removeIf(i->i.isInvalid() || i.getOptionalIngredients().size() > ingredientsGrid.size());
-                if (!group.isEmpty() || (pack.craftingTabs.containsKey(res) && pack.craftingTabs.get(res).craftings().containsKey(s))) {
-                    groups.add(group);
-                    addedRecipes.addAll(group);
-                }
-            });
-
-            recipesByTab.add(groups);
-            craftingTabList.addTabButton(43, LegacyTabButton.Type.MIDDLE, listing.icon(), listing.name(), t->resetElements());
-        }
-        resetElements(false);
-
-        craftingTabList.selectedTab = tabIdx % getMaxTabCount();
-        page.set(Math.min(tabIdx / getMaxTabCount(), page.max));
-        selectedCraftingButton = buttonIdx;
-        craftingButtonsOffset.set(Math.min(offsetIdx, craftingButtonsOffset.max));
+        reloadScreen(0, 0, 0);
     }
 
     public int getActualTab() {
-        return page.get() * getMaxTabCount() + craftingTabList.selectedTab;
+        return Math.min(page.get() * getMaxTabCount() + craftingTabList.selectedTab, allTabsRes.size() - 1);
     }
 
     @Override
@@ -113,27 +74,30 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
                     renderableVList.addRenderable(Button.builder(Component.literal("Cancel"), b->minecraft.setScreen(parent)).build());
                     renderableVList.addRenderable(Button.builder(Component.literal("Create Tab"), b->minecraft.setScreen(new TabOptionsScreen(parent, Component.literal("New Tab"), Component.literal("Tab Name"), null, s->{
                         String newId = s.idBox.getValue();
-                        ResourceLocation res = ResourceLocation.tryParse(newId.contains(":") ? newId : "listings:" + newId);
+                        ResourceLocation res = ResourceLocation.tryParse(newId.contains(":") ? newId : LegacyListings.MOD_ID + ":" + newId);
                         LegacyCraftingTabListing listing = new LegacyCraftingTabListing(res, Component.literal(s.renameBox.getValue()), LegacyCraftingTabListing.map.getByIndex(0).iconHolder(), new HashMap<>());
                         pack.craftingTabs.put(res, listing);
+                        minecraft.setScreen(parent);
                         reloadScreen();
                     }))).build());
                     ResourceLocation id = allTabsRes.get(getActualTab());
                     LegacyCraftingTabListing prevListing = getOldListing(id);
                     Button editButton = Button.builder(Component.literal("Edit Tab"), b->minecraft.setScreen(new TabOptionsScreen(this, Component.literal("Edit Tab"), Component.literal("Tab Name"), prevListing, s->{
                         String newId = s.idBox.getValue();
-                        ResourceLocation res = ResourceLocation.tryParse(newId.contains(":") ? newId : "listings:" + newId);
+                        ResourceLocation res = ResourceLocation.tryParse(newId.contains(":") ? newId : LegacyListings.MOD_ID + ":" + newId);
                         LegacyCraftingTabListing listing = new LegacyCraftingTabListing(res, Component.literal(s.renameBox.getValue()), prevListing.iconHolder(), prevListing.craftings());
                         pack.craftingTabs.put(res, listing);
                         pack.craftingTabs.remove(id);
+                        minecraft.setScreen(parent);
                         reloadScreen();
                     }))).build();
                     Button deleteButton = Button.builder(Component.literal("Delete Tab"), b->minecraft.setScreen(new ConfirmationScreen(this, Component.literal("Delete Tab"), Component.literal("Are you sure you want to delete this tab? All of your groups in it will be lost!"), s->{
                         pack.craftingTabs.remove(id);
+                        minecraft.setScreen(parent);
                         reloadScreen();
                     }))).build();
-                    editButton.active = getActualTab() >= LegacyCreativeTabListing.map.size() - 1;
-                    deleteButton.active = editButton.active;
+                    editButton.active = getActualTab() >= LegacyCreativeTabListing.map.size() - 1 || editExisting;
+                    deleteButton.active = getActualTab() >= LegacyCreativeTabListing.map.size() - 1 || (editExisting && allTabsRes.size() > 1);
                     renderableVList.addRenderable(editButton);
                     renderableVList.addRenderable(deleteButton);
                 }
@@ -149,11 +113,32 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
     }
 
     public LegacyCraftingTabListing getOldListing(ResourceLocation id) {
-        return LegacyCraftingTabListing.map.containsKey(id) ? LegacyCraftingTabListing.map.get(id) : pack.craftingTabs.getOrDefault(id, null);
+        return LegacyCraftingTabListing.map.containsKey(id) && !editExisting ? LegacyCraftingTabListing.map.get(id) : pack.craftingTabs.getOrDefault(id, null);
+    }
+
+    public void editGroup(LegacyCraftingTabListing listing, String group, @Nullable List<RecipeInfo.Filter> defaultRecipes, boolean isNew) {
+        List<RecipeInfo.Filter> listingRecipes = listing.craftings().getOrDefault(group, new ArrayList<>());
+        minecraft.setScreen(new RecipeViewerScreen(this, group, allRecipes, elsewhereRecipes, defaultRecipes, listingRecipes, s -> {
+            if ((s.selectedItems.isEmpty() && s.defaultItems.isEmpty()) || s.groupId == null) {
+                listing.craftings().remove(group);
+            } else {
+                if (!editExisting) s.selectedItems.removeAll(s.defaultItems);
+                if (!s.groupId.equals(group)) listing.craftings().remove(group);
+                if (!s.selectedItems.isEmpty() || (LegacyCraftingTabListing.map.containsKey(listing.id()) && LegacyCraftingTabListing.map.get(listing.id()).craftings().containsKey(group))) {
+                    List<RecipeInfo.Filter> craftings = s.selectedItems.stream().map(i -> (RecipeInfo.Filter) new RecipeInfo.Filter.Id(s.itemToRecipe.get(i).getId())).toList();
+                    listing.craftings().put(s.groupId, craftings);
+                }
+            }
+            reloadScreen();
+        }, s-> {
+            if (s.selectedItems.isEmpty() && s.defaultItems.isEmpty() && isNew) {
+                listing.craftings().remove(group);
+            }
+            reloadScreen();
+        }, Component.literal("Edit Group")));
     }
 
     public void editGroup(int groupIndex) {
-        if (typeTabList.selectedTab != 0) return;
         ResourceLocation id = allTabsRes.get(getActualTab());
         LegacyCraftingTabListing oldListing = getOldListing(id);
         LegacyCraftingTabListing newListing;
@@ -166,37 +151,20 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
         } else {
             newListing = pack.craftingTabs.get(id);
         }
-        List<String> groups = new ArrayList<>(oldListing.craftings().keySet());
-        newListing.craftings().keySet().forEach(g -> {
-            if (!groups.contains(g)) groups.add(g);
-        });
-        if (groups.size() <= groupIndex) {
+        if (groupIndex >= groupsByTab.get(getActualTab()).size()) {
             newGroup(newListing);
             return;
         }
-        String group = groups.get(groupIndex);
-        minecraft.setScreen(new RecipeViewerScreen(this, group, allRecipes, addedRecipes, LegacyCraftingTabListing.map.containsKey(id) ? oldListing.craftings().get(group) : null, newListing.craftings().get(group), s -> {
-            if (s.selectedItems.isEmpty() && s.defaultItems.isEmpty()) {
-                newListing.craftings().remove(group);
-            } else {
-                s.selectedItems.removeAll(s.defaultItems);
-                if (s.groupId == null || !s.groupId.equals(group)) {
-                    newListing.craftings().remove(group);
-                }
-                if (s.groupId != null && (!s.selectedItems.isEmpty() || (LegacyCraftingTabListing.map.containsKey(id) && LegacyCraftingTabListing.map.get(id).craftings().containsKey(group)))) {
-                    List<RecipeInfo.Filter> craftings = s.selectedItems.stream().map(i -> (RecipeInfo.Filter) new RecipeInfo.Filter.Id(s.itemToRecipe.get(i).getId())).toList();
-                    newListing.craftings().put(s.groupId, craftings);
-                }
-            }
-            reloadScreen();
-        }, s-> reloadScreen(), Component.literal("Edit Group")));
+        String group = groupsByTab.get(getActualTab()).get(groupIndex);
+        List<RecipeInfo.Filter> oldRecipes = LegacyCraftingTabListing.map.containsKey(id) && !editExisting ? oldListing.craftings().get(group) : null;
+        editGroup(newListing, group, oldRecipes, false);
     }
 
     public void newGroup(LegacyCraftingTabListing listing) {
         EditBox renameBox = new EditBox(Minecraft.getInstance().font, 0,0,200,20, Component.literal("Group ID"));
         minecraft.setScreen(new ConfirmationScreen(this, 230, 120, Component.literal("New Group"), Component.literal("Group ID"), b -> {
             listing.craftings().put(renameBox.getValue(), new ArrayList<>());
-            editGroup(listing.craftings().size() - 1);
+            editGroup(listing, renameBox.getValue(), null, true);
         }) {
             @Override
             protected void init() {
@@ -210,8 +178,64 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
     }
 
     private void reloadScreen() {
-        minecraft.setScreen(parent);
-        parent.setPreviewScreen(pack, page.get() * getMaxTabCount() + craftingTabList.selectedTab, selectedCraftingButton, craftingButtonsOffset.get());
+        reloadScreen(getActualTab(), selectedCraftingButton, craftingButtonsOffset.get());
+    }
+
+    private void reloadScreen(int tabIdx, int buttonIdx, int offsetIdx) {
+//        minecraft.setScreen(parent);
+//        parent.setPreviewScreen(pack, page.get() * getMaxTabCount() + craftingTabList.selectedTab, selectedCraftingButton, craftingButtonsOffset.get());
+        allTabsRes.clear();
+        recipesByTab.clear();
+        groupsByTab.clear();
+        craftingTabList.tabButtons.clear();
+        page.max = 0;
+
+        if (!editExisting) {
+            for (int i = 0; i < LegacyCraftingTabListing.map.size(); i++) {
+                allTabsRes.add(LegacyCraftingTabListing.map.getKeyByIndex(i));
+            }
+        }
+        for (int i = 0; i < pack.craftingTabs.size(); i++) {
+            ResourceLocation res = pack.craftingTabs.getKeyByIndex(i);
+            if (!allTabsRes.contains(res)) allTabsRes.add(res);
+        }
+
+        for (ResourceLocation res : allTabsRes) {
+            LegacyCraftingTabListing listing = LegacyCraftingTabListing.map.containsKey(res) && !editExisting ? LegacyCraftingTabListing.map.get(res) : pack.craftingTabs.get(res);
+            List<List<RecipeInfo<CraftingRecipe>>> groups = new ArrayList<>();
+            List<String> groupNames = new ArrayList<>();
+            ListMap<String, List<RecipeInfo.Filter>> fullGroups = new ListMap<>();
+            if (LegacyCraftingTabListing.map.containsKey(res) && !editExisting)
+                LegacyCraftingTabListing.map.get(res).craftings().forEach((s,l)->fullGroups.put(s, new ArrayList<>(l)));
+            if (pack.craftingTabs.containsKey(res)) {
+                Map<String, List<RecipeInfo.Filter>> map = pack.craftingTabs.get(res).craftings();
+                fullGroups.forEach((s, l) -> {
+                    if (map.containsKey(s)) l.addAll(map.get(s));
+                });
+                map.forEach(fullGroups::putIfAbsent);
+            }
+            fullGroups.forEach((s,l)->{
+                List<RecipeInfo<CraftingRecipe>> group = new ArrayList<>();
+                l.forEach(v->v.addRecipes(allRecipes,group::add));
+                group.removeIf(i->i.isInvalid() || i.getOptionalIngredients().size() > ingredientsGrid.size());
+                if (!group.isEmpty() || (pack.craftingTabs.containsKey(res) && pack.craftingTabs.get(res).craftings().containsKey(s))) {
+                    groups.add(group);
+                    groupNames.add(s);
+                    elsewhereRecipes.addAll(group);
+                }
+            });
+
+            recipesByTab.add(groups);
+            groupsByTab.add(groupNames);
+            craftingTabList.addTabButton(43, LegacyTabButton.Type.MIDDLE, listing.icon(), listing.name(), t->resetElements());
+        }
+        tabIdx = Math.min(tabIdx, allTabsRes.size());
+
+        craftingTabList.selectedTab = Math.min(tabIdx % getMaxTabCount(), craftingTabList.tabButtons.size() - 1);
+        page.set(Math.min(tabIdx / getMaxTabCount(), page.max));
+        resetElements(true);
+        selectedCraftingButton = buttonIdx;
+        craftingButtonsOffset.set(Math.min(offsetIdx, craftingButtonsOffset.max));
     }
 
     @Override
@@ -221,17 +245,17 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
     }
 
     //? if >1.20.1 {
-    @Override
+    /*@Override
     public void renderBackground(GuiGraphics guiGraphics, int i, int j, float f) {
         ScreenUtil.renderTransparentBackground(guiGraphics);
         renderBg(guiGraphics, f, i, j);
     }
-    //?} else {
-    /*@Override
+    *///?} else {
+    @Override
     public void renderBackground(GuiGraphics guiGraphics) {
         ScreenUtil.renderTransparentBackground(guiGraphics);
     }
-    *///?}
+    //?}
 
     @Override
     protected void addCraftingButtons() {
@@ -264,12 +288,12 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
                 }
 
                 private boolean hasGroup() {
-                    List<List<RecipeInfo<CraftingRecipe>>> list = recipesByTab.get(page.get() * getMaxTabCount() + craftingTabList.selectedTab);
+                    List<List<RecipeInfo<CraftingRecipe>>> list = recipesByTab.get(getActualTab());
                     return list.size() > craftingButtonsOffset.get() + index;
                 }
 
                 protected List<RecipeInfo<CraftingRecipe>> getRecipes() {
-                    List<List<RecipeInfo<CraftingRecipe>>> list = recipesByTab.get(page.get() * getMaxTabCount() + craftingTabList.selectedTab);
+                    List<List<RecipeInfo<CraftingRecipe>>> list = recipesByTab.get(getActualTab());
                     return list.size() <= craftingButtonsOffset.get() + index ? Collections.emptyList() : list.get(craftingButtonsOffset.get() + index);
                 }
 
@@ -293,7 +317,7 @@ public class CraftingPreviewScreen extends LegacyCraftingScreen {
 
                 @Override
                 public void onPress() {
-                    editGroup(selectedCraftingButton + craftingButtonsOffset.get());
+                    if (isFocused() && isValidIndex()) editGroup(selectedCraftingButton + craftingButtonsOffset.get());
                 }
 
                 @Override

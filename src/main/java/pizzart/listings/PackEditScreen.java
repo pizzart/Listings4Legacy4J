@@ -11,29 +11,41 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.StringUtil;
 import wily.factoryapi.base.client.SimpleLayoutRenderable;
 import wily.legacy.client.CommonColor;
-import wily.legacy.client.screen.ConfirmationScreen;
-import wily.legacy.client.screen.Panel;
-import wily.legacy.client.screen.PanelVListScreen;
+import wily.legacy.client.screen.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 public class PackEditScreen extends PanelVListScreen {
-    public ListingPack pack;
-    public Path oldPackPath;
+    private final ListingPack pack;
+    private final Path oldPackPath;
+    private final LegacySliderButton<ListingPack.Type> typeSlider;
+//    public TickBox tickBox;
     public PackEditScreen(Screen parent, ListingPack pack, Path oldPackPath, Component title, Component saveText) {
-        super(parent, s-> Panel.centered(s,255,160,0,0), title);
+        super(parent, s-> Panel.centered(s,255,172,0,16), title);
         this.pack = pack;
         this.oldPackPath = oldPackPath;
-        Button editButton = Button.builder(Component.literal("Edit Listings"), b -> minecraft.setScreen(new ListingsScreen(this, pack))).build();
+        this.typeSlider = new LegacySliderButton<>(0, 0, 200, 16, s -> {
+            String typeName = switch (s.getObjectValue()) {
+                case CUSTOM -> "Custom";
+                case ADDITIVE -> "Additive";
+                case FULL -> "Full";
+            };
+            return Component.literal("Pack Type: %s".formatted(typeName));
+        }, s -> Tooltip.create(Component.literal("Custom: create empty pack.\nAdditive: create pack with uneditable pre-existing listings. Pack will be saved with only the listings you've added.\nFull: create pack with editable pre-existing listings. Pack will be saved with every listing. Recommended.")),
+                pack.type, () -> Arrays.stream(ListingPack.Type.values()).toList(), s ->pack.type = s.getObjectValue());
+        typeSlider.active = !pack.initialized;
+//        tickBox = new TickBox(0, 0, true, b->Component.literal("Edit Existing Recipes"), b-> Tooltip.create(Component.literal("If disabled, disallows the editing of existing recipes (added by the game or resource packs), the listing pack will exclusively contain the items that were added in the pack.")), b->{});
+        Button editButton = Button.builder(Component.literal("Edit Listings"), b -> minecraft.setScreen(new ListingsScreen(this, pack, s-> updateSlider()))).build();
         Button saveButton = Button.builder(saveText, b -> onCreate()).build();
         EditBox renameBox = new EditBox(Minecraft.getInstance().font, width / 2 - 100, 0, 200, 20, Component.literal("Listing Pack Name"));
         MultiLineEditBox descBox = new MultiLineEditBox(Minecraft.getInstance().font, width / 2 - 100, 0, 200, 40, Component.literal("Listing pack description goes here"), Component.literal("Listing Pack Description")) {
             @Override
             public boolean keyPressed(int i, int j, int k) {
                 if (i == InputConstants.KEY_DOWN) {
-                    PackEditScreen.this.setFocused(editButton);
+                    PackEditScreen.this.setFocused(typeSlider);
                     return true;
                 }
                 if (i == InputConstants.KEY_UP) {
@@ -55,8 +67,10 @@ public class PackEditScreen extends PanelVListScreen {
         renderableVList.addRenderable(renameBox);
         renderableVList.addRenderable(SimpleLayoutRenderable.createDrawString(Component.literal("Pack Description"),0,1,2,9, CommonColor.INVENTORY_GRAY_TEXT.get(),false));
         renderableVList.addRenderable(descBox);
+        renderableVList.addRenderable(typeSlider);
         renderableVList.addRenderable(editButton);
         renderableVList.addRenderable(saveButton);
+        updateSlider();
     }
 
     @Override
@@ -69,9 +83,19 @@ public class PackEditScreen extends PanelVListScreen {
         }
     }
 
+    public void updateSlider() {
+        if (!typeSlider.active) return;
+        if (pack.modifiesOldGroup()) {
+            typeSlider.active = false;
+            if (typeSlider.getObjectValue() == ListingPack.Type.ADDITIVE) {
+                typeSlider.setTooltip(Tooltip.create(Component.literal("A pre-existing group has been modified, but the pack type is set to additive. Not sure how that happened.")));
+            }
+        }
+    }
+
     public void onCreate() {
-        if (pack.craftingTabs.isEmpty()) {
-            minecraft.setScreen(new ConfirmationScreen(this, Component.literal("Empty Listing"), Component.literal("The listing is empty, as such the pack will not be saved. Continue?"), s-> super.onClose()));
+        if (pack.isEmpty()) {
+            minecraft.setScreen(new ConfirmationScreen(this, Component.literal("Empty Pack"), Component.literal("The pack is empty, it will not be saved. Continue?"), s-> super.onClose()));
         } else {
             if (oldPackPath != null && !pack.name.equals(oldPackPath.getFileName().toString())) {
                 try {

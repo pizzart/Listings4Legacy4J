@@ -5,7 +5,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.InputConstants;
-import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -19,11 +18,8 @@ import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import wily.factoryapi.base.client.FactoryGuiGraphics;
-import wily.legacy.client.ControlType;
 import wily.legacy.client.LegacyCraftingTabListing;
-import wily.legacy.client.controller.ControllerBinding;
 import wily.legacy.client.screen.*;
-import wily.legacy.util.LegacyComponents;
 import wily.legacy.util.LegacySprites;
 import wily.legacy.util.ScreenUtil;
 
@@ -58,7 +54,7 @@ public class PacksScreen extends PanelVListScreen {
                         minecraft.setScreen(ConfirmationScreen.createInfoScreen(this, Component.literal("Missing File"), Component.literal("The pack.mcmeta file is missing!")));
                         return;
                     }
-                    ListingPack pack = new ListingPack(f.getName());
+                    ListingPack pack = new ListingPack(f.getName(), true);
                     try (BufferedReader bufferedReader = Files.newBufferedReader(craftingsPath)) {
                         JsonElement element = JsonParser.parseReader(bufferedReader);
                         if (element instanceof JsonArray a) a.forEach(e-> LegacyCraftingTabListing.CODEC.parse(JsonOps.INSTANCE, e).result().ifPresent(listing -> {
@@ -67,18 +63,25 @@ public class PacksScreen extends PanelVListScreen {
                             } else if (listing.isValid())
                                 pack.craftingTabs.put(listing.id(), listing);
                         }));
+                        if (pack.modifiesOldGroup()) {
+                            pack.type = ListingPack.Type.FULL;
+                        } else if (!pack.containsOldListing()) {
+                            pack.type = ListingPack.Type.CUSTOM;
+                        } else {
+                            pack.type = ListingPack.Type.ADDITIVE;
+                        }
                         BufferedReader metadataReader = Files.newBufferedReader(metaPath);
                         JsonElement metaElement = JsonParser.parseReader(metadataReader);
                         if (metaElement instanceof JsonObject o && o.asMap().containsKey("pack")) {
                             //? if >1.20.1 {
-                            PackMetadataSection meta = PackMetadataSection.CODEC.parse(JsonOps.INSTANCE, o.asMap().get("pack")).result().orElseThrow();
+                            /*PackMetadataSection meta = PackMetadataSection.CODEC.parse(JsonOps.INSTANCE, o.asMap().get("pack")).result().orElseThrow();
                             pack.desc = meta.description().getString();
                             pack.packFormat = meta.packFormat();
-                            //?} else {
-                            /*PackMetadataSection meta = PackMetadataSection.TYPE.fromJson(o.getAsJsonObject("pack"));
+                            *///?} else {
+                            PackMetadataSection meta = PackMetadataSection.TYPE.fromJson(o.getAsJsonObject("pack"));
                             pack.desc = meta.getDescription().getString();
                             pack.packFormat = meta.getPackFormat();
-                            *///?}
+                            //?}
                         }
                         minecraft.setScreen(new PackEditScreen(this, pack, f.toPath(), Component.literal("Edit Pack"), Component.literal("Save Pack")));
                     } catch (IOException e) {
